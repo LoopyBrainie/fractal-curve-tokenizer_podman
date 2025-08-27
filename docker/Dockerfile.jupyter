@@ -1,0 +1,55 @@
+# Jupyter Lab专用Dockerfile - 使用uv
+FROM python:3.12.11-slim
+
+WORKDIR /app
+
+# 安装系统依赖和uv
+RUN apt-get update && apt-get install -y \
+    git \
+    build-essential \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.cargo/bin:$PATH"
+ENV UV_CACHE_DIR=/tmp/uv-cache
+
+# 复制项目文件
+COPY pyproject.toml uv.lock* ./
+COPY README.md LICENSE MANIFEST.in ./
+COPY vit_pytorch/ ./vit_pytorch/
+COPY tests/ ./tests/
+COPY *.py ./
+
+# 使用uv安装依赖（包括开发依赖）
+RUN uv sync --frozen
+
+# 使用uv安装Jupyter相关包
+RUN uv add \
+    jupyterlab \
+    jupyter \
+    ipywidgets \
+    matplotlib \
+    plotly \
+    ipykernel \
+    notebook
+
+# 创建目录
+RUN mkdir -p /app/notebooks /app/data /app/outputs
+
+# Jupyter配置
+RUN uv run jupyter lab --generate-config
+RUN echo "c.ServerApp.token = ''" >> /root/.jupyter/jupyter_lab_config.py
+RUN echo "c.ServerApp.password = ''" >> /root/.jupyter/jupyter_lab_config.py
+RUN echo "c.ServerApp.allow_root = True" >> /root/.jupyter/jupyter_lab_config.py
+
+EXPOSE 8888
+
+CMD ["uv", "run", "jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root"]

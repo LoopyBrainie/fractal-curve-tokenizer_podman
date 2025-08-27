@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  fractal-tokenizer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fractal-curve-tokenizer
+    image: fractal-curve-tokenizer:latest
+    
+    # 环境变量
+    environment:
+      - PYTHONPATH=/app
+      - UV_CACHE_DIR=/tmp/uv-cache
+      - WANDB_API_KEY=${WANDB_API_KEY:-}
+      - WANDB_PROJECT=fractal-tokenizer
+    
+    # 端口映射（如果需要Web服务）
+    ports:
+      - "8000:8000"
+    
+    # 卷挂载
+    volumes:
+      - ./data:/app/data:ro  # 只读数据目录
+      - ./outputs:/app/outputs  # 可写输出目录
+      - ./logs:/app/logs  # 日志目录
+      - uv-cache:/tmp/uv-cache  # uv缓存目录
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
+        reservations:
+          cpus: '2.0'
+          memory: 4G
+    
+    # 重启策略
+    restart: unless-stopped
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "uv", "run", "python", "-c", "from vit_pytorch import FractalHilbertTokenizer; print('OK')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # 可选：Jupyter服务用于实验
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile.jupyter
+    container_name: fractal-jupyter
+    ports:
+      - "8888:8888"
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - UV_CACHE_DIR=/tmp/uv-cache
+    volumes:
+      - .:/app/workspace
+      - ./outputs:/app/outputs
+      - uv-cache:/tmp/uv-cache
+      - jupyter-data:/root/.jupyter
+    command: >
+      uv run jupyter lab --ip=0.0.0.0 --port=8888 --no-browser 
+      --allow-root --notebook-dir=/app
+    profiles:
+      - jupyter
+
+  # 可选：TensorBoard服务用于监控
+  tensorboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fractal-tensorboard
+    ports:
+      - "6006:6006"
+    environment:
+      - UV_CACHE_DIR=/tmp/uv-cache
+    volumes:
+      - ./logs:/app/logs:ro
+      - uv-cache:/tmp/uv-cache
+    command: uv run tensorboard --logdir=/app/logs --host=0.0.0.0 --port=6006
+    profiles:
+      - monitoring
+
+volumes:
+  uv-cache:
+    driver: local
+  jupyter-data:
+    driver: local
+
+networks:
+  default:
+    name: fractal-network
