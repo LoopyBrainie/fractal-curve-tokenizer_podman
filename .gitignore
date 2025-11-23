@@ -96,3 +96,6 @@ results/
 
 # Pre-commit
 .pre-commit-config.yaml
+
+# document
+docs/
