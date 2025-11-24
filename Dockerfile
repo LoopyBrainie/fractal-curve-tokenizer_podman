@@ -9,13 +9,16 @@ RUN apt-get update && apt-get install -y \
     git \
     curl \
     ca-certificates \
+    pkg-config \
+    libcairo2-dev \
+    libpango1.0-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # 安装 uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # 将 uv 添加到 PATH
-ENV PATH="/root/.cargo/bin:$PATH"
+ENV PATH="/root/.local/bin:/root/.cargo/bin:$PATH"
 
 # 设置工作目录
 WORKDIR /app
@@ -30,10 +33,10 @@ RUN uv sync
 
 # 复制并设置入口脚本
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 # 设置入口点
 ENTRYPOINT ["/entrypoint.sh"]
 
-# 默认命令 (可以根据实际训练脚本修改，例如 python train.py)
-CMD ["uv", "run", "python", "--version"]
+# 默认启动 bash，让用户自行决定执行什么命令
+CMD ["/bin/bash"]

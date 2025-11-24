@@ -1,10 +1,26 @@
 version: '3.8'
 
 services:
-  app:
+  trainer:
     build: .
-    container_name: basic-python-app
-    ports:
-      - "8000:8000"
+    container_name: fractal-trainer
+    # 启用 GPU 支持 (需要安装 nvidia-container-toolkit)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     volumes:
-      - .:/app
+      # 挂载 workspace 目录以持久化保存模型检查点和训练日志
+      # 注意：不要挂载根目录 .:/app，否则会覆盖容器内克隆的代码
+      - ./workspace:/app/workspace
+    # 默认保持容器运行，方便用户进入容器操作 (podman exec -it ...)
+    command: tail -f /dev/null
+    
+    # 如果需要直接运行训练，可以使用以下命令覆盖：
+    # command: ["uv", "run", "python", "examples/training/train_fractal_vit.py", "--dataset", "cifar10", "--epochs", "10"]
+    
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all

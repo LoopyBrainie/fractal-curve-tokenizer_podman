@@ -1,0 +1,7 @@
+outputs/
+workspace/
+.git
+.venv
+__pycache__
+*.pyc
+.DS_Store
